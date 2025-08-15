@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: langchain-facebook-app
+    env: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    # envVars:
+    #   - key: OPENAI_API_KEY
+    #     value: your-openai-api-key
+    #   - key: FACEBOOK_ACCESS_TOKEN
+    #     value: your-page-token
