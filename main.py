@@ -43,7 +43,7 @@ async def verify_webhook(request: Request):
     else:
         return PlainTextResponse("Verification failed", status_code=403)
 
-@app.post("/chat")
+@app.post("/webhook")
 async def receive_webhook(request: Request):
     """
     Facebook gọi POST khi có sự kiện (comment, message, feed...)
