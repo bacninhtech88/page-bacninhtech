@@ -5,8 +5,11 @@ services:
     plan: free
     region: oregon
     dockerfilePath: ./Dockerfile
-    # envVars:
-    #   - key: OPENAI_API_KEY
-    #     value: your-openai-api-key
-    #   - key: FACEBOOK_ACCESS_TOKEN
-    #     value: your-page-token
+    autoDeploy: true   # Tự động deploy khi push GitHub
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false   # đồng bộ từ Render dashboard (không commit key thật)
+      - key: FACEBOOK_ACCESS_TOKEN
+        sync: false
+      - key: VERIFY_TOKEN
+        sync: false   # token dùng xác minh webhook Facebook
