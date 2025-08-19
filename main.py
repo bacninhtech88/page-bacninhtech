@@ -1,4 +1,6 @@
 # xử lý truy vấn AI + webhook Facebook
+# https://developers.facebook.com/apps/1786295022763777/add/  Link webhook nếu không có cài ngoài
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
@@ -27,7 +29,7 @@ def page_posts():
 # ========== Webhook Facebook ==========
 VERIFY_TOKEN = "dong1411"  # điền giống như trong FB app phần xác minh mã
 
-@app.get("/chat")
+@app.get("/page")
 async def verify_webhook(request: Request):
     """
     Facebook gọi GET khi xác minh webhook
