@@ -29,6 +29,11 @@ def page_posts():
 # ========== Webhook Facebook ==========
 VERIFY_TOKEN = "dong1411"  # điền giống như trong FB app phần xác minh mã
 
+@app.get("/")
+async def root():
+    return {"message": "App is running on Render"}
+
+
 @app.get("/page")
 async def verify_webhook(request: Request):
     """
