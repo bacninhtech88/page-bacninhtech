@@ -51,29 +51,14 @@ async def verify_webhook(request: Request):
         return PlainTextResponse("Verification failed", status_code=403)
 
 @app.get("/webhook")
-async def receive_webhook(request: Request):
-    body = await request.json()
-    print("📩 Webhook received:", body)
-    return {"status": "ok"}
+async def verify_webhook(request: Request):
+    params = dict(request.query_params)
+    if params.get("hub.mode") == "subscribe" and params.get("hub.verify_token") == VERIFY_TOKEN:
+        return int(params["hub.challenge"])
+    return {"error": "Invalid token"}
 
 @app.post("/webhook")
-async def receive_webhook(request: Request):
-    """
-    Facebook gọi POST khi có sự kiện (comment, message, feed...)
-    """
+async def webhook_handler(request: Request):
     data = await request.json()
-    print("🔔 Webhook event received:", data, flush=True)
-
-    # Ví dụ: xử lý comment
-    if "entry" in data:
-        for entry in data["entry"]:
-            if "changes" in entry:
-                for change in entry["changes"]:
-                    if change.get("field") == "feed":
-                        comment_data = change.get("value", {})
-                        if comment_data.get("item") == "comment":
-                            message = comment_data.get("message")
-                            comment_id = comment_data.get("comment_id")
-                            print(f"💬 Comment mới: {message} (ID: {comment_id})")
-
-    return JSONResponse(content={"status": "ok"}, status_code=200)
+    print("📩 Webhook event:", data)
+    return {"status": "ok"}
