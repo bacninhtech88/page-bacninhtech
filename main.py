@@ -50,6 +50,18 @@ async def verify_webhook(request: Request):
     else:
         return PlainTextResponse("Verification failed", status_code=403)
 
+@app.get("/webhook")
+async def verify_webhook(request: Request):
+    mode = request.query_params.get("hub.mode")
+    token = request.query_params.get("hub.verify_token")
+    challenge = request.query_params.get("hub.challenge")
+
+    if mode == "subscribe" and token == VERIFY_TOKEN:
+        return int(challenge)
+    else:
+        return JSONResponse(content={"error": "Invalid token"}, status_code=403)
+
+
 @app.post("/webhook")
 async def receive_webhook(request: Request):
     """
