@@ -1,6 +1,8 @@
 # xử lý truy vấn AI + webhook Facebook
 # https://developers.facebook.com/apps/1786295022763777/add/  Link webhook nếu không có cài ngoài
 
+import os
+import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
@@ -46,3 +48,8 @@ async def webhook_handler(request: Request):
     data = await request.json()
     print("📩 Webhook event:", data)
     return {"status": "ok"}
+
+if __name__ == "__main__":
+    # Lấy PORT từ biến môi trường, nếu không có thì mặc định 8000 (chạy local)/ luôn đặt sau cùng
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
