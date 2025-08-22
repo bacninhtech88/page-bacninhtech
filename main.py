@@ -33,29 +33,13 @@ VERIFY_TOKEN = "dong1411"  # điền giống như trong FB app phần xác minh 
 async def root():
     return {"message": "App is running on Render"}
 
-
-@app.get("/page")
-async def verify_webhook(request: Request):
-    """
-    Facebook gọi GET khi xác minh webhook
-    Ví dụ: ?hub.mode=subscribe&hub.verify_token=xxx&hub.challenge=1234
-    """
-    params = dict(request.query_params)
-    mode = params.get("hub.mode")
-    token = params.get("hub.verify_token")
-    challenge = params.get("hub.challenge")
-
-    if mode == "subscribe" and token == VERIFY_TOKEN:
-        return PlainTextResponse(challenge, status_code=200)
-    else:
-        return PlainTextResponse("Verification failed", status_code=403)
-
 @app.get("/webhook")
 async def verify_webhook(request: Request):
     params = dict(request.query_params)
     if params.get("hub.mode") == "subscribe" and params.get("hub.verify_token") == VERIFY_TOKEN:
-        return int(params["hub.challenge"])
-    return {"error": "Invalid token"}
+        return PlainTextResponse(params["hub.challenge"], status_code=200)
+    return PlainTextResponse("Invalid token", status_code=403)
+
 
 @app.post("/webhook")
 async def webhook_handler(request: Request):
