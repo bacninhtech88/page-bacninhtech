@@ -31,3 +31,9 @@ def get_latest_posts(page_id="105438444519744", limit=3):
         print("Lỗi:", data["error"]["message"])
     return data
 
+def reply_comment(comment_id: str, message: str):
+    url = f"https://graph.facebook.com/v19.0/{comment_id}/comments"
+    params = {"access_token": ACCESS_TOKEN}
+    data = {"message": message}
+    response = requests.post(url, params=params, data=data)
+    return response.json()
