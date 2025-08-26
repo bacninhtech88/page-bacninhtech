@@ -6,6 +6,8 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
+from facebook_tools import reply_comment
+from agent import get_answer
 
 from facebook_tools import get_page_info, get_latest_posts
 
@@ -44,10 +46,25 @@ async def verify_webhook(request: Request):
 
 
 @app.post("/webhook")
-async def webhook_handler(request: Request):
+async def webhook(request: Request):
     data = await request.json()
-    print("📩 Webhook event:", data)
+    # lấy comment text
+    if "entry" in data:
+        for entry in data["entry"]:
+            for change in entry["changes"]:
+                if change["field"] == "feed":
+                    comment = change["value"]["message"]
+                    comment_id = change["value"]["comment_id"]
+                    # gọi LangChain để sinh câu trả lời
+                    answer = get_answer(comment)
+                    # phản hồi lên Facebook
+                    reply_comment(comment_id, answer)
     return {"status": "ok"}
+
+
+
+
+
 
 if __name__ == "__main__":
     # Lấy PORT từ biến môi trường, nếu không có thì mặc định 8000 (chạy local)/ luôn đặt sau cùng
