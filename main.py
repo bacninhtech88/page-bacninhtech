@@ -6,6 +6,8 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
+from langchain_app.db import engine, SessionLocal
+from sqlalchemy import text
 from facebook_tools import reply_comment
 from agent import get_answer
 
@@ -62,11 +64,19 @@ async def webhook(request: Request):
     return {"status": "ok"}
 
 
+def test_connection():
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT 1"))
+            print("✅ Kết nối database thành công!", result.scalar())
+    except Exception as e:
+        print("❌ Lỗi kết nối database:", e)
 
 
 
 
 if __name__ == "__main__":
+    test_connection()
     # Lấy PORT từ biến môi trường, nếu không có thì mặc định 8000 (chạy local)/ luôn đặt sau cùng
     port = int(os.getenv("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
