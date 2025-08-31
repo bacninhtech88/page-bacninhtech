@@ -3,10 +3,10 @@
 
 import os
 import uvicorn
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
-from db import engine, SessionLocal
+from db import engine, SessionLocal, get_db 
 from sqlalchemy import text
 from facebook_tools import reply_comment
 from agent import get_answer
@@ -36,8 +36,21 @@ def page_posts():
 VERIFY_TOKEN = "dong1411"  # điền giống như trong FB app phần xác minh mã
 
 @app.get("/")
-async def root():
-    return {"message": "App is running on Render"}
+async def root(db=Depends(get_db)):
+    try:
+        result = db.execute(text("SELECT 1")).fetchone()
+        return {
+            "message": "App is running on Render",
+            "db_connection": "success",
+            "result": result[0]
+        }
+    except Exception as e:
+        return {
+            "message": "App is running on Render",
+            "db_connection": "failed",
+            "error": str(e)
+        }
+
 
 @app.get("/webhook")
 async def verify_webhook(request: Request):
