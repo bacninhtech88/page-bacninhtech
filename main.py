@@ -35,21 +35,38 @@ def page_posts():
 # ========== Webhook Facebook ==========
 VERIFY_TOKEN = "dong1411"  # điền giống như trong FB app phần xác minh mã
 
-@app.get("/")
-async def root(db=Depends(get_db)):
+def test_mysql_connection(host="s88d68.cloudnetwork.vn", port=3306):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(5)  # timeout 5s
     try:
-        result = db.execute(text("SELECT 1")).fetchone()
-        return {
-            "message": "App is running on Render",
-            "db_connection": "success",
-            "result": result[0]
-        }
-    except Exception as e:
-        return {
-            "message": "App is running on Render",
-            "db_connection": "failed",
-            "error": str(e)
-        }
+        sock.connect((host, port))
+        return {"db_port_check": "open", "host": host, "port": port}
+    except socket.error as e:
+        return {"db_port_check": "failed", "host": host, "port": port, "error": str(e)}
+    finally:
+        sock.close()
+
+@app.get("/")
+async def root():
+    result = test_mysql_connection()
+    return {
+        "message": "App is running on Render",
+        **result
+    }
+# async def root(db=Depends(get_db)):
+#     try:
+#         result = db.execute(text("SELECT 1")).fetchone()
+#         return {
+#             "message": "App is running on Render",
+#             "db_connection": "success",
+#             "result": result[0]
+#         }
+#     except Exception as e:
+#         return {
+#             "message": "App is running on Render",
+#             "db_connection": "failed",
+#             "error": str(e)
+#         }
 
 
 @app.get("/webhook")
