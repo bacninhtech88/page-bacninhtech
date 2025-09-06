@@ -1,6 +1,6 @@
 # xử lý truy vấn AI + webhook Facebook
 # https://developers.facebook.com/apps/1786295022763777/add/  Link webhook nếu không có cài ngoài
-
+import requests
 import os
 import uvicorn
 import socket
