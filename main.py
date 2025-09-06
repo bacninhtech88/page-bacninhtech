@@ -81,18 +81,33 @@ async def verify_webhook(request: Request):
 @app.post("/webhook")
 async def webhook(request: Request):
     data = await request.json()
-    # lấy comment text
     if "entry" in data:
         for entry in data["entry"]:
-            for change in entry["changes"]:
+            for change in entry.get("changes", []):
                 if change["field"] == "feed":
-                    comment = change["value"]["message"]
-                    comment_id = change["value"]["comment_id"]
-                    # gọi LangChain để sinh câu trả lời
+                    comment = change["value"].get("message", "")
+                    comment_id = change["value"].get("comment_id", "")
+                    user_id = change["value"]["from"]["id"]
+                    user_name = change["value"]["from"]["name"]
+
+                    # ✅ Gọi connect.php để ghi DB
+                    # payload = {
+                    #     "comment_id": comment_id,
+                    #     "user_id": user_id,
+                    #     "user_name": user_name,
+                    #     "message": comment
+                    # }
+
+                    payload = {"user": "nguyenvanA", "pass": "123456"}
+                    requests.post("https://foreignervietnam.com/langchain/connect.php", json=payload)
+
+                    # ✅ AI trả lời
                     answer = get_answer(comment)
-                    # phản hồi lên Facebook
                     reply_comment(comment_id, answer)
+
     return {"status": "ok"}
+
+
 
 
 def test_connection():
