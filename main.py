@@ -81,6 +81,8 @@ async def verify_webhook(request: Request):
 @app.post("/webhook")
 async def webhook(request: Request):
     data = await request.json()
+    print("📩 Webhook data:", data)   # 👉 Ghi log ra console (Render sẽ lưu lại log)
+
     if "entry" in data:
         for entry in data["entry"]:
             for change in entry.get("changes", []):
@@ -90,22 +92,15 @@ async def webhook(request: Request):
                     user_id = change["value"]["from"]["id"]
                     user_name = change["value"]["from"]["name"]
 
-                    # ✅ Gọi connect.php để ghi DB
-                    # payload = {
-                    #     "comment_id": comment_id,
-                    #     "user_id": user_id,
-                    #     "user_name": user_name,
-                    #     "message": comment
-                    # }
-
                     payload = {"user": "nguyenvanA", "pass": "123456"}
-                    requests.post("https://foreignervietnam.com/langchain/connect.php", json=payload)
+                    res = requests.post("https://foreignervietnam.com/langchain/connect.php", json=payload)
+                    print("📩 Response từ connect.php:", res.status_code, res.text)
 
-                    # ✅ AI trả lời
                     answer = get_answer(comment)
                     reply_comment(comment_id, answer)
 
     return {"status": "ok"}
+
 
 
 
