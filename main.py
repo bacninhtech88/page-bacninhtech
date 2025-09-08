@@ -1,5 +1,5 @@
 # xử lý truy vấn AI + webhook Facebook
-# https://developers.facebook.com/apps/1786295022763777/add/  Link webhook nếu không có cài ngoài
+# https://developers.facebook.com/apps/1786295022763777/add/ Link webhook nếu không có cài ngoài
 import requests
 import os
 import uvicorn
@@ -7,12 +7,10 @@ import socket
 from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
-from db import engine, SessionLocal, get_db 
+from db import engine, SessionLocal, get_db
 from sqlalchemy import text
-from facebook_tools import reply_comment
+from facebook_tools import reply_comment, get_page_info, get_latest_posts
 from agent import get_answer
-
-from facebook_tools import get_page_info, get_latest_posts
 
 app = FastAPI()
 
@@ -24,51 +22,69 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ========== Các hàm kiểm tra kết nối ==========
+def test_mysql_connection(db=None):
+    """Kiểm tra kết nối tới MySQL/MariaDB bằng SQLAlchemy."""
+    if db:
+        try:
+            db.execute(text("SELECT 1"))
+            return {"db_connection": "success"}
+        except Exception as e:
+            return {"db_connection": "failed", "error": str(e)}
+    else:
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            return {"db_connection": "success"}
+        except Exception as e:
+            return {"db_connection": "failed", "error": str(e)}
+
+def test_facebook_connection():
+    """Kiểm tra kết nối tới Facebook Page bằng cách gọi hàm get_page_info."""
+    try:
+        page_info = get_page_info()
+        # Giả sử hàm get_page_info sẽ trả về một dictionary nếu thành công
+        if "id" in page_info and "name" in page_info:
+            return {
+                "facebook_connection": "success",
+                "page_id": page_info.get("id"),
+                "page_name": page_info.get("name")
+            }
+        else:
+            return {
+                "facebook_connection": "failed",
+                "message": "Không thể lấy thông tin Page. Kiểm tra Access Token và quyền."
+            }
+    except Exception as e:
+        return {
+            "facebook_connection": "failed",
+            "error": str(e),
+            "message": "Lỗi khi gọi API Facebook."
+        }
+# ---
 # ========== API do bạn đã viết ==========
 @app.get("/api/page_info")
-def page_info():
+def page_info_endpoint():
     return get_page_info()
 
 @app.get("/api/page_posts")
-def page_posts():
+def page_posts_endpoint():
     return get_latest_posts()
 
-# ========== Webhook Facebook ==========
-VERIFY_TOKEN = "dong1411"  # điền giống như trong FB app phần xác minh mã
-
-def test_mysql_connection(host="s88d68.cloudnetwork.vn", port=3306):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(5)  # timeout 5s
-    try:
-        sock.connect((host, port))
-        return {"db_port_check": "open", "host": host, "port": port}
-    except socket.error as e:
-        return {"db_port_check": "failed", "host": host, "port": port, "error": str(e)}
-    finally:
-        sock.close()
+# ---
+# ========== Webhook Facebook và API gốc ==========
+VERIFY_TOKEN = "dong1411"
 
 @app.get("/")
-async def root():
-    result = test_mysql_connection()
+async def root(db: SessionLocal = Depends(get_db)):
+    """API gốc, trả về trạng thái kết nối của DB và Facebook Page."""
+    db_status = test_mysql_connection(db)
+    fb_status = test_facebook_connection()
     return {
-        "message": "App is running on Render",
-        **result
+        "message": "App is running",
+        **db_status,
+        **fb_status
     }
-# async def root(db=Depends(get_db)):
-#     try:
-#         result = db.execute(text("SELECT 1")).fetchone()
-#         return {
-#             "message": "App is running on Render",
-#             "db_connection": "success",
-#             "result": result[0]
-#         }
-#     except Exception as e:
-#         return {
-#             "message": "App is running on Render",
-#             "db_connection": "failed",
-#             "error": str(e)
-#         }
-
 
 @app.get("/webhook")
 async def verify_webhook(request: Request):
@@ -77,11 +93,10 @@ async def verify_webhook(request: Request):
         return PlainTextResponse(params["hub.challenge"], status_code=200)
     return PlainTextResponse("Invalid token", status_code=403)
 
-
 @app.post("/webhook")
 async def webhook(request: Request):
     data = await request.json()
-    print("📩 Webhook data:", data)   # 👉 Ghi log ra console (Render sẽ lưu lại log)
+    print("📩 Webhook data:", data)
 
     if "entry" in data:
         for entry in data["entry"]:
@@ -101,23 +116,8 @@ async def webhook(request: Request):
 
     return {"status": "ok"}
 
-
-
-
-
-def test_connection():
-    try:
-        with engine.connect() as conn:
-            result = conn.execute(text("SELECT 1"))
-            print("✅ Kết nối database thành công!", result.scalar())
-    except Exception as e:
-        print("❌ Lỗi kết nối database:", e)
-
-
-
-
+# ---
+# ========== Khởi chạy ứng dụng ==========
 if __name__ == "__main__":
-    test_connection()
-    # Lấy PORT từ biến môi trường, nếu không có thì mặc định 8000 (chạy local)/ luôn đặt sau cùng
     port = int(os.getenv("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
