@@ -7,7 +7,7 @@ import socket
 from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
-from db import engine, SessionLocal, get_db
+# from db import engine, SessionLocal, get_db
 from sqlalchemy import text
 from facebook_tools import reply_comment, get_page_info, get_latest_posts
 from agent import get_answer
@@ -23,21 +23,6 @@ app.add_middleware(
 )
 
 # ========== Các hàm kiểm tra kết nối ==========
-def test_mysql_connection(db=None):
-    """Kiểm tra kết nối tới MySQL/MariaDB bằng SQLAlchemy."""
-    if db:
-        try:
-            db.execute(text("SELECT 1"))
-            return {"db_connection": "success"}
-        except Exception as e:
-            return {"db_connection": "failed", "error": str(e)}
-    else:
-        try:
-            with engine.connect() as conn:
-                conn.execute(text("SELECT 1"))
-            return {"db_connection": "success"}
-        except Exception as e:
-            return {"db_connection": "failed", "error": str(e)}
 
 def test_facebook_connection():
     """Kiểm tra kết nối tới Facebook Page bằng cách gọi hàm get_page_info."""
@@ -76,13 +61,11 @@ def page_posts_endpoint():
 VERIFY_TOKEN = "dong1411"
 
 @app.get("/")
-async def root(db: SessionLocal = Depends(get_db)):
+async def root():
     """API gốc, trả về trạng thái kết nối của DB và Facebook Page."""
-    db_status = test_mysql_connection(db)
     fb_status = test_facebook_connection()
     return {
         "message": "App is running",
-        **db_status,
         **fb_status
     }
 
