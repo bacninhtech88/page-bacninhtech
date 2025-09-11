@@ -3,6 +3,8 @@
 import requests
 import os
 import uvicorn
+from agent import get_answer
+import logging
 import socket
 from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -76,10 +78,11 @@ async def verify_webhook(request: Request):
         return PlainTextResponse(params["hub.challenge"], status_code=200)
     return PlainTextResponse("Invalid token", status_code=403)
 
+# ... (Phần code trên)
 @app.post("/webhook")
 async def webhook(request: Request):
     data = await request.json()
-    print("📩 Webhook data:", data)
+    logging.info(f"📩 Webhook data: {data}")
 
     if "entry" in data:
         for entry in data["entry"]:
@@ -90,16 +93,41 @@ async def webhook(request: Request):
                     user_id = change["value"]["from"]["id"]
                     user_name = change["value"]["from"]["name"]
 
-                    payload = {"user": "nguyenvanA", "pass": "123456"}
-                    res = requests.post("https://foreignervietnam.com/langchain/connect.php", json=payload)
-                    print("📩 Response từ connect.php:", res.status_code, res.text)
+                    # Sử dụng logging.info() để ghi lại thông tin comment
+                    logging.info(f"📝 Nhận được comment từ {user_name} (ID: {user_id}): '{comment}' với Comment ID: {comment_id}")
 
-                    answer = get_answer(comment)
-                    reply_comment(comment_id, answer)
-
+                    # ... (Các dòng code còn lại giữ nguyên)
     return {"status": "ok"}
+# ... (Phần code dưới)
 
 # ---
+# mẫu json facebook gửi
+# {
+#   "object": "page",
+#   "entry": [
+#     {
+#       "id": "ID_CUA_PAGE",
+#       "time": 1754029199,
+#       "changes": [
+#         {
+#           "field": "feed",
+#           "value": {
+#             "from": {
+#               "id": "ID_NGUOI_DUNG",
+#               "name": "TÊN_NGƯỜI_DÙNG"
+#             },
+#             "post_id": "ID_BAI_VIET",
+#             "comment_id": "ID_BINH_LUAN",
+#             "message": "Nội dung bình luận của người dùng.",
+#             "created_time": 1754029199,
+#             "item": "comment",
+#             "verb": "add"
+#           }
+#         }
+#       ]
+#     }
+#   ]
+# }
 # ========== Khởi chạy ứng dụng ==========
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
