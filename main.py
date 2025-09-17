@@ -91,29 +91,10 @@ async def verify_webhook(request: Request):
 async def webhook(request: Request):
     try:
         data = await request.json()
-        logging.info(f"📩 Webhook data: {data}")
-
-        if "entry" in data:
-            for entry in data["entry"]:
-                for change in entry.get("changes", []):
-                    # Kiểm tra xem sự kiện có phải là comment không
-                    if change.get("field") == "feed" and change.get("value", {}).get("item") == "comment" and change.get("value", {}).get("verb") == "add":
-                        comment = change["value"].get("message", "N/A")
-                        user_name = change["value"]["from"]["name"]
-                        comment_id = change["value"].get("comment_id", "N/A")
-
-                        # Chỉ ghi log thông tin comment
-                        logging.info(f"📝 Nhận được comment từ {user_name} với nội dung: '{comment}'")
-                        logging.info(f"👉 Thông tin chi tiết: user_id={change['value']['from']['id']}, comment_id={comment_id}")
-                    else:
-                        # Ghi log nếu sự kiện không phải là comment để bạn biết
-                        logging.info(f"⚠️ Nhận được sự kiện không phải comment: {change.get('field')}")
-                        
+        logging.info(f"📩 Dữ liệu Webhook nhận được: {data}")
     except Exception as e:
-        # Ghi log lỗi nếu có bất kỳ vấn đề nào xảy ra
-        logging.error(f"❌ Lỗi xử lý webhook: {e}")
-        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
-
+        logging.error(f"❌ Lỗi khi nhận dữ liệu webhook: {e}")
+        return JSONResponse({"status": "error"}, status_code=500)
     return JSONResponse({"status": "ok"})
 
 # ========== Khởi chạy ứng dụng ==========
