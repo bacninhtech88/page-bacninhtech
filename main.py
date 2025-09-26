@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlalchemy import text # Dùng để chạy truy vấn kiểm tra DB
 # Giả định các file này tồn tại và được cấu hình
-from db import SessionLocal, get_db
+# from db import SessionLocal, get_db
 from facebook_tools import get_page_info, get_latest_posts 
 from agent import get_answer 
 
@@ -64,21 +64,6 @@ def test_facebook_connection():
             "message": "Lỗi khi gọi API Facebook."
         }
 
-def test_db_connection():
-    """Kiểm tra kết nối tới Database bằng cách chạy một truy vấn đơn giản."""
-    db_status = {"db_connection": "failed", "message": "Lỗi kết nối hoặc truy vấn DB."}
-    
-    try:
-        with SessionLocal() as db:
-            # Chạy truy vấn đơn giản để kiểm tra kết nối
-            db.execute(text("SELECT 1"))
-            db_status = {"db_connection": "success", "message": "Kết nối Database thành công."}
-    except Exception as e:
-        db_status["error"] = str(e)
-        logging.error(f"❌ Lỗi kết nối Database: {e}")
-        
-    return db_status
-
 # ========== 2. Các Endpoints API Cơ bản ==========
 
 @app.get("/api/page_info")
@@ -93,13 +78,11 @@ def page_posts_endpoint():
 async def root():
     """API gốc, trả về trạng thái kết nối của DB và Facebook Page."""
     fb_status = test_facebook_connection()
-    db_status = test_db_connection()
     
     # Kết hợp kết quả của cả hai hàm
     return {
         "message": "App is running",
         **fb_status,
-        **db_status
     }
 
 # ========== 3. Endpoint Webhook Facebook ==========
