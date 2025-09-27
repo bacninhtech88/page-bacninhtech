@@ -2,9 +2,6 @@
 # FILE: main.py - API Xử lý Webhook Facebook, AI và Kết nối DB
 # Cập nhật lần cuối: 26/09/2025
 # ====================================================================
-
-import requests
-import os
 import uvicorn
 import logging
 from fastapi import FastAPI, Request, Depends
@@ -15,6 +12,29 @@ from sqlalchemy import text # Dùng để chạy truy vấn kiểm tra DB
 # from db import SessionLocal, get_db
 from facebook_tools import get_page_info, get_latest_posts 
 from agent import get_answer 
+
+import os
+import io
+import shutil
+import requests
+import resend
+import re
+import smtplib
+from email.message import EmailMessage
+
+from dotenv import load_dotenv
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseDownload
+
+from langchain_community.document_loaders import PyPDFLoader, TextLoader, Docx2txtLoader
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain_community.vectorstores import Chroma
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.chains import RetrievalQA
+
+from pydantic import BaseModel
+
 
 # URL của endpoint PHP để ghi dữ liệu
 PHP_CONNECT_URL = "https://foreignervietnam.com/langchain/connect.php" 
@@ -30,17 +50,107 @@ logging.basicConfig(
     ]
 )
 
+
 app = FastAPI()
 
-# Cấu hình CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Cho phép tất cả các domain gọi API
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+load_dotenv()
+os.environ["CHROMA_TELEMETRY"] = "false"
+
+# ==== Cấu hình API ====
+CREDENTIALS_URL = "https://foreignervietnam.com/langchain/drive-folder.php"
+CREDENTIALS_TOKEN = os.getenv("CREDENTIALS_TOKEN")
+SERVICE_ACCOUNT_FILE = "/tmp/drive-folder.json"
+FOLDER_ID = "1rXRIAvC4wb63WjrAaj0UUiidpL2AiZzQ"
 # ========== 1. Các Hàm Kiểm Tra Kết Nối (Connection Health Checks) ==========
+# ==== Gửi email ====
+resend.api_key = "re_DwokJ9W5_E7evBxTVZ2kVVGLPEd9puRuC"
+
+def send_email(subject: str, content: str):
+    try:
+        resend.Emails.send({
+            "from": "bot@bacninhtech.com",
+            "to": "contact@bacninhtech.com",
+            "subject": subject,
+            "html": f"<p>{content}</p>",
+        })
+    except Exception as e:
+        print("Lỗi gửi mail:", e)
+
+# ==== Tải file credentials từ API ====
+headers = {"X-Access-Token": CREDENTIALS_TOKEN}
+response = requests.get(CREDENTIALS_URL, headers=headers)
+if response.status_code == 200:
+    with open(SERVICE_ACCOUNT_FILE, "wb") as f:
+        f.write(response.content)
+else:
+    raise Exception(f"Không thể tải file credentials: {response.status_code}")
+
+# ==== Google Drive functions ====
+def authenticate_drive():
+    creds = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE)
+    return build("drive", "v3", credentials=creds)
+
+def download_drive_files(drive_service):
+    os.makedirs("/tmp/data", exist_ok=True)
+    results = drive_service.files().list(
+        q=f"'{FOLDER_ID}' in parents and trashed=false",
+        fields="files(id, name)"
+    ).execute()
+    files = results.get("files", [])
+    for file in files:
+        file_path = os.path.join("/tmp/data", file["name"])
+        if os.path.exists(file_path):
+            continue
+        request = drive_service.files().get_media(fileId=file["id"])
+        with io.FileIO(file_path, "wb") as fh:
+            downloader = MediaIoBaseDownload(fh, request)
+            done = False
+            while not done:
+                _, done = downloader.next_chunk()
+
+# ==== Tải và xử lý tài liệu ====
+def load_documents():
+    docs = []
+    for filename in os.listdir("/tmp/data"):
+        filepath = os.path.join("/tmp/data", filename)
+        if os.path.getsize(filepath) == 0:
+            continue
+        if filename.endswith(".pdf"):
+            docs.extend(PyPDFLoader(filepath).load())
+        elif filename.endswith(".txt"):
+            docs.extend(TextLoader(filepath).load())
+        elif filename.endswith(".docx"):
+            docs.extend(Docx2txtLoader(filepath).load())
+    return docs
+
+# ==== Tạo Vectorstore từ tài liệu ====
+drive_service = authenticate_drive()
+download_drive_files(drive_service)
+documents = load_documents()
+
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=300, chunk_overlap=50)
+splits = text_splitter.split_documents(documents)
+
+embedding = OpenAIEmbeddings()
+vectorstore = Chroma.from_documents(
+    documents=splits,
+    embedding=embedding,
+    persist_directory="/tmp/chroma_db"
+)
+
+
+
+
+
+
 
 def test_facebook_connection():
     """Kiểm tra kết nối tới Facebook Page bằng cách gọi hàm get_page_info."""
