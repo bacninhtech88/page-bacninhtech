@@ -1,50 +1,52 @@
 # ====================================================================
 # FILE: main.py - API Xử lý Webhook Facebook, AI và Kết nối DB
-# Cập nhật lần cuối: 26/09/2025
+# Cập nhật lần cuối: 30/09/2025
 # ====================================================================
 import uvicorn
 import logging
 import requests
 import os
-# ... (Các imports khác) ...
+import resend
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, BackgroundTasks # Đảm bảo BackgroundTasks đã được import
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
-from facebook_tools import get_page_info, get_latest_posts, handle_webhook_data 
-# ... (Các imports từ drive, agent, v.v.) ...
 
-# ... (Giữ nguyên các khai báo và cấu hình ban đầu: logging, app, load_dotenv, VECTORSTORE, send_email, v.v.) ...
+from facebook_tools import get_page_info, get_latest_posts, handle_webhook_data, reply_comment 
+from drive import get_vectorstore
+from agent import get_answer 
 
+from dotenv import load_dotenv
 
 # URL của endpoint PHP để ghi dữ liệu
 PHP_CONNECT_URL = "https://foreignervietnam.com/langchain/connect.php" 
 VERIFY_TOKEN = "dong1411" # Mã xác minh Webhook của bạn
 
-# ... (Giữ nguyên các hàm test_facebook_connection, page_info_endpoint, root, verify_webhook) ...
+# Cấu hình logging
+# ... (Giữ nguyên logging.basicConfig) ...
 
-# ... (Đoạn giữa của main.py) ...
+load_dotenv()
+os.environ["CHROMA_TELEMETRY"] = "false"
 
-@app.post("/webhook")
-async def webhook(request: Request):
-    """
-    Xử lý dữ liệu POST từ Webhook Facebook bằng cách gọi hàm bên ngoài.
-    """
-    try:
-        data = await request.json()
-        logging.info(f"📩 Dữ liệu Webhook nhận được: {data}")
-        
-        # GỌI HÀM ĐÃ CHUYỂN SANG facebook_tools.py
-        handle_webhook_data(data, PHP_CONNECT_URL)
+# ************************************************
+# KHÔI PHỤC KHAI BÁO APP TẠI ĐÂY!
+# ************************************************
+app = FastAPI() # <--- DÒNG NÀY RẤT QUAN TRỌNG VÀ PHẢI CÓ TRƯỚC DECORATOR
 
-    except Exception as e:
-        # Ghi log lỗi nội bộ
-        logging.error(f"❌ Lỗi xử lý Webhook: {e}")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Cho phép tất cả các domain gọi API
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+# ************************************************
 
-    # BẮT BUỘC: Trả về 200 OK cho Facebook để xác nhận đã nhận
-    return JSONResponse({"status": "ok"}, status_code=200)
 
-# ========== 4. Khởi chạy Ứng dụng ==========
-if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+# ==== TẢI VECTORSTORE ====
+VECTORSTORE = get_vectorstore()
+# =======================
+
+# ... (Tiếp tục với hàm send_email, test_facebook_connection, và các endpoints) ...
+
+# ... (Hàm process_ai_reply, webhook POST, và uvicorn.run đều đã đúng) ...
