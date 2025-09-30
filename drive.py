@@ -24,7 +24,7 @@ CREDENTIALS_URL = "https://foreignervietnam.com/langchain/drive-folder.php"
 CREDENTIALS_TOKEN = os.getenv("CREDENTIALS_TOKEN")
 SERVICE_ACCOUNT_FILE = "/tmp/drive-folder.json"
 # Thay thế bằng ID thư mục Google Drive của bạn
-FOLDER_ID = "1rXRIAvC4wb63WjrAaj0UUiidpL2AiZzQ" 
+FOLDER_ID = "1rAUTvaAgyTNzrj7u15vw5s2zNtK1QsDm" 
 TEMP_DATA_DIR = "/tmp/data"
 CHROMA_DB_DIR = "/tmp/chroma_db"
 
