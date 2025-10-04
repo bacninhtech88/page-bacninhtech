@@ -170,20 +170,17 @@ async def verify_webhook(request: Request):
     return PlainTextResponse("Invalid token", status_code=403)
 
 
+
 @app.post("/webhook")
 async def webhook(request: Request, background_tasks: BackgroundTasks):
-    """
-    Xử lý dữ liệu POST từ Webhook Facebook, lưu DB và kích hoạt tác vụ nền AI.
-    """
+    # ... (các đoạn code đầu)
     try:
         data = await request.json()
-        logging.info(f"📩 Dữ liệu Webhook nhận được: {data}")
         
-        # 1. Ghi DB (Hàm này có trong facebook_tools.py)
-        # Chỉ ghi dữ liệu TẠM THỜI (PENDING)
-        handle_webhook_data(data, PHP_CONNECT_URL)
-        
-        # 2. KÍCH HOẠT XỬ LÝ AI BẤT ĐỒNG BỘ (Chỉ xử lý comment)
+        # 1. Ghi DB
+        handle_webhook_data(data, PHP_CONNECT_URL) # Giữ nguyên
+
+        # 2. KÍCH HOẠT XỬ LÝ AI BẤT ĐỒNG BỘ
         if data.get('object') == 'page' and data.get('entry'):
             for entry in data['entry']:
                 idpage = entry.get('id')
@@ -194,13 +191,20 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
                         idcomment = value.get('comment_id')
                         message = value.get('message', '').strip()
                         idpost = value.get('post_id')
+                        # >>> ID NGƯỜI GỬI BÌNH LUẬN CẦN LẤY Ở ĐÂY <<<
+                        idpersion = value.get('from', {}).get('id') 
+
+                        # >>>>>>>>>> ĐIỂM SỬA LỖI VÒNG LẶP CỐT LÕI <<<<<<<<<<
+                        if idpersion == idpage:
+                            logging.info(f"⏭️ Bỏ qua bình luận tự động của Page ID {idpage} (Fix tại main.py).")
+                            continue
+                        # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
                         
                         # Chỉ xử lý comment mới, không phải reply
                         if message and idcomment and idcomment != idpost: 
                              # Thêm tác vụ AI vào hàng đợi nền
-                            background_tasks.add_task(process_ai_reply, idcomment, message, idpage)
-                            logging.info(f"➡️ Đã thêm tác vụ AI cho comment ID: {idcomment}")
-
+                             background_tasks.add_task(process_ai_reply, idcomment, message, idpage)
+                             logging.info(f"➡️ Đã thêm tác vụ AI cho comment ID: {idcomment}")
 
     except Exception as e:
         logging.error(f"❌ Lỗi xử lý Webhook: {e}")
