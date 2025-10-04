@@ -49,7 +49,7 @@ def reply_comment(comment_id: str, message: str):
     return response.json()
 
 # ====================================================================
-# HÀM MỚI: Xử lý Webhook Facebook và Ghi DB qua PHP
+# HÀM MỚI: Xử lý Webhook Facebook và Ghi DB qua PHP (ĐÃ SỬA LỖI VÒNG LẶP)
 # ====================================================================
 def handle_webhook_data(data: dict, php_connect_url: str):
     """
@@ -65,6 +65,7 @@ def handle_webhook_data(data: dict, php_connect_url: str):
         return
 
     for entry in data['entry']:
+        # Lấy ID Page ngay ở đây để so sánh sau này
         idpage = entry.get('id')
 
         for change in entry.get('changes', []):
@@ -75,9 +76,15 @@ def handle_webhook_data(data: dict, php_connect_url: str):
                 # --- 1. Trích xuất dữ liệu ---
                 idcomment = value.get('comment_id')
                 idpost = value.get('post_id')
-                idpersion = value.get('from', {}).get('id') 
+                idpersion = value.get('from', {}).get('id') # ID người comment
                 message = value.get('message', '').strip()
                 creatime = value.get('created_time') 
+                
+                # >>>>>> KIỂM TRA MỚI: BỎ QUA BÌNH LUẬN TỪ CHÍNH PAGE <<<<<<
+                if idpersion == idpage:
+                    logging.info(f"⏭️ Bỏ qua bình luận tự động của Page ID {idpage} để tránh vòng lặp.")
+                    continue
+                # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
                 
                 # Bỏ qua nếu thiếu nội dung hoặc sự kiện không hợp lệ
                 if not message or not idcomment or idcomment == idpost:
@@ -98,7 +105,6 @@ def handle_webhook_data(data: dict, php_connect_url: str):
                 }
 
                 # --- 3. Gửi yêu cầu POST tới connect.php ---
-                # requests phải được import trong facebook_tools.py (đã làm)
                 try:
                     response = requests.post(php_connect_url, json=db_payload, timeout=5)
                     
@@ -107,4 +113,4 @@ def handle_webhook_data(data: dict, php_connect_url: str):
                     else:
                         logging.error(f"❌ Lỗi ghi DB qua PHP. Code: {response.status_code}, Res: {response.text}")
                 except requests.exceptions.RequestException as e:
-                     logging.error(f"❌ Lỗi mạng khi gửi tới PHP: {e}")
+                    logging.error(f"❌ Lỗi mạng khi gửi tới PHP: {e}")
