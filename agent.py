@@ -1,48 +1,57 @@
 # ====================================================================
-# FILE: agent.py - Logic Xử lý AI (RAG)
+# FILE: agent.py - Logic Xử lý AI (RAG) (ĐÃ SỬA LỖI PROMPT)
 # ====================================================================
 import os
 from langchain.chains import RetrievalQA
 from langchain_openai import ChatOpenAI
-from langchain_community.vectorstores import Chroma # Giữ lại cho Type Hinting
-# Bạn không cần Langchain Embeddings nếu bạn đã tạo Vectorstore xong
-# từ drive.py và chỉ cần sử dụng nó.
+from langchain_community.vectorstores import Chroma 
+# >>> IMPORT CẦN THIẾT <<<
+from langchain.prompts import PromptTemplate, ChatPromptTemplate 
+# >>>>>>>>>>>>>>>>>>>>>>>>
 
 # Khởi tạo mô hình ngôn ngữ lớn (LLM) chỉ một lần
-# Giả định bạn đã có biến môi trường OPENAI_API_KEY
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
-# XÓA/COMMENT TOÀN BỘ LOGIC TẠO VECTORSTORE TẠI ĐÂY:
-# # load tài liệu đã train vào vectorDB (ví dụ Chroma)
-# embeddings = OpenAIEmbeddings()
-# vectordb = Chroma(persist_directory="./db", embedding_function=embeddings)
-# qa = RetrievalQA.from_chain_type(
-#     llm=ChatOpenAI(model="gpt-4o-mini"),
-#     retriever=vectordb.as_retriever()
-# )
+# TẠO PROMPT TEMPLATE TÙY CHỈNH (GLOBAL)
+RAG_PROMPT_TEMPLATE = """
+Bạn là trợ lý AI thân thiện và chuyên nghiệp cho Page Yêu Công Nghệ - bacninhtech.
+Nhiệm vụ của bạn là **TÓM TẮT** và **CHỈ TRẢ LỜI** dựa trên ngữ cảnh được cung cấp dưới đây, tuyệt đối không bịa ra thông tin.
+Nếu thông tin trong ngữ cảnh không đủ để trả lời, hãy nói một cách lịch sự rằng bạn sẽ kiểm tra lại hoặc đề nghị khách hàng liên hệ trực tiếp.
 
+NGỮ CẢNH:
+{context}
+
+CÂU HỎI:
+{question}
+"""
 
 def get_answer(query: str, vectorstore: Chroma) -> str:
     """
-    Sử dụng RetrievalQA Chain để trả lời câu hỏi dựa trên Vectorstore được cung cấp.
+    Sử dụng RetrievalQA Chain với Prompt Tùy chỉnh để trả lời câu hỏi.
     """
     
-    # 1. Tạo RAG Chain MỖI KHI CÓ CÂU HỎI (để đảm bảo tính linh hoạt)
-    # hoặc bạn có thể tạo Chain một lần ở main.py và truyền vào nếu cần tối ưu
-    
-    # Tạo đối tượng truy vấn (Retriever) từ vectorstore được truyền vào
-    retriever = vectorstore.as_retriever()
+    # 1. Tạo đối tượng truy vấn (Retriever)
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 5}) # Thử tăng k lên 5 để lấy nhiều ngữ cảnh hơn
 
-    # Tạo RetrievalQA Chain
+    # 2. Định nghĩa Prompt Tùy chỉnh
+    custom_prompt = PromptTemplate(
+        template=RAG_PROMPT_TEMPLATE,
+        input_variables=["context", "question"],
+    )
+
+    # 3. Tạo RetrievalQA Chain với custom_prompt
     qa_chain = RetrievalQA.from_chain_type(
         llm=llm,
         chain_type="stuff",
         retriever=retriever,
-        return_source_documents=False 
+        return_source_documents=False,
+        # >>> THÊM THAM SỐ CẤU HÌNH PROMPT TẠI ĐÂY <<<
+        chain_type_kwargs={"prompt": custom_prompt}
+        # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     )
     
-    # Thực thi truy vấn
-    result = qa_chain.invoke({"query": query}) # Thay qa.run(query) bằng qa.invoke({"query": query})
+    # 4. Thực thi truy vấn
+    result = qa_chain.invoke({"query": query})
 
-    # Trả về kết quả
+    # 5. Trả về kết quả
     return result['result']
