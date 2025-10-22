@@ -20,7 +20,7 @@ from agent import get_answer
 from dotenv import load_dotenv
 
 # URL của endpoint PHP để ghi dữ liệu
-PHP_CONNECT_URL = "https://foreignervietnam.com/langchain/connect.php" 
+PHP_CONNECT_URL = "https://bacninhtech.com/aiapp/connect.php" 
 VERIFY_TOKEN = "dong1411" # Mã xác minh Webhook của bạn
 
 # Cấu hình logging
