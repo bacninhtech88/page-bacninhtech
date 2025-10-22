@@ -20,7 +20,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 load_dotenv()
 
 # ==== Cấu hình API ====
-CREDENTIALS_URL = "https://foreignervietnam.com/langchain/drive-folder.php"
+CREDENTIALS_URL = "https://bacninhtech.com/aiapp/drive-folder.php"
 CREDENTIALS_TOKEN = os.getenv("CREDENTIALS_TOKEN")
 SERVICE_ACCOUNT_FILE = "/tmp/drive-folder.json"
 # Thay thế bằng ID thư mục Google Drive của bạn
