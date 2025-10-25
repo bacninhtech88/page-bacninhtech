@@ -20,47 +20,55 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 load_dotenv()
 
 # ==== Cấu hình API ====
-CREDENTIALS_URL = "https://bacninhtech.com/aiapp/drive-folder.php"
-CREDENTIALS_TOKEN = os.getenv("CREDENTIALS_TOKEN")
-SERVICE_ACCOUNT_FILE = "/tmp/drive-folder.json"
+# CREDENTIALS_URL = os.getenv("CREDENTIALS_URL_PHP")
+# CREDENTIALS_TOKEN = os.getenv("CREDENTIALS_TOKEN")
+# JSON_ACCOUNT_FILE = os.getenv("JSON_ACCOUNT_FILE")
+JSON_CONTENT_CREDENTIALS= os.getenv("GCP_CREDENTIALS_JSON")
 # Thay thế bằng ID thư mục Google Drive của bạn
-FOLDER_ID = "1rAUTvaAgyTNzrj7u15vw5s2zNtK1QsDm" 
+DRIVE_FOLDER_ID = os.getenv("DRIVE_FOLDER_ID")
 TEMP_DATA_DIR = "/tmp/data"
 CHROMA_DB_DIR = "/tmp/chroma_db"
+SERVICE_ACCOUNT_FILE = "/tmp/drive-folder-temp.json" 
 
 def setup_vectorstore():
     """
-    Tải file xác thực, tải tài liệu từ Google Drive, xử lý chúng
+    Tải file xác thực từ Biến Môi trường, tải tài liệu từ Google Drive, xử lý chúng
     và trả về Vectorstore (ChromaDB) đã được khởi tạo.
     """
-    # 1. Tải file credentials từ API
-    print("Bắt đầu: Tải file xác thực...")
-    headers = {"X-Access-Token": CREDENTIALS_TOKEN}
+    
+    # === BƯỚC 1: TẠO FILE CREDENTIALS TỪ BIẾN MÔI TRƯỜNG (Thay thế API) ===
+    print("Bắt đầu: Tải file xác thực từ biến môi trường...")
+    
+    # 1a. Kiểm tra nội dung JSON
+    if not JSON_CONTENT_CREDENTIALS:
+        # Nếu biến môi trường bị thiếu, dừng ngay quá trình khởi tạo RAG
+        raise Exception("LỖI FATAL: Không tìm thấy biến môi trường GCP_CREDENTIALS_JSON.")
+        
+    # 1b. Ghi nội dung JSON vào file tạm /tmp/drive-folder-temp.json
     try:
-        response = requests.get(CREDENTIALS_URL, headers=headers)
-        if response.status_code == 200:
-            with open(SERVICE_ACCOUNT_FILE, "wb") as f:
-                f.write(response.content)
-            print("Hoàn tất: Tải file xác thực thành công.")
-        else:
-            raise Exception(f"Không thể tải file credentials: {response.status_code}")
+        # Ghi file ở chế độ 'w' (write) để ghi nội dung JSON (string)
+        with open(SERVICE_ACCOUNT_FILE, "w") as f:
+            f.write(JSON_CONTENT_CREDENTIALS) 
+        print("Hoàn tất: Tạo file xác thực tạm thời thành công.")
     except Exception as e:
-        # Nếu lỗi xác thực, dừng ngay quá trình khởi tạo RAG
-        print(f"LỖI FATAL: Lỗi tải hoặc lưu file credentials: {e}")
+        # Nếu lỗi ghi file (ví dụ: lỗi I/O), dừng ngay
+        print(f"LỖI FATAL: Không thể ghi nội dung credentials vào file tạm: {e}")
         raise e
 
-    # 2. Xác thực Google Drive
+    # === BƯỚC 2: Xác thực Google Drive ===
     print("Bắt đầu: Xác thực Google Drive...")
+    # creds sẽ đọc file tạm /tmp/drive-folder-temp.json
     creds = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE)
     drive_service = build("drive", "v3", credentials=creds)
     print("Hoàn tất: Xác thực Google Drive thành công.")
 
+    # === BƯỚC 3, 4, 5: TẢI TÀI LIỆU VÀ TẠO VECTORSTORE ===
     # 3. Tải tài liệu từ Drive
     os.makedirs(TEMP_DATA_DIR, exist_ok=True)
-    print(f"Bắt đầu: Tải tài liệu từ Folder ID {FOLDER_ID}...")
+    print(f"Bắt đầu: Tải tài liệu từ Folder ID {DRIVE_FOLDER_ID}...")
     
     results = drive_service.files().list(
-        q=f"'{FOLDER_ID}' in parents and trashed=false",
+        q=f"'{DRIVE_FOLDER_ID}' in parents and trashed=false",
         fields="files(id, name)"
     ).execute()
     files = results.get("files", [])
@@ -85,8 +93,10 @@ def setup_vectorstore():
     docs = []
     for filename in os.listdir(TEMP_DATA_DIR):
         filepath = os.path.join(TEMP_DATA_DIR, filename)
+        # Bổ sung kiểm tra size 0 byte để tránh lỗi Loader
         if os.path.getsize(filepath) == 0: continue
         
+        # Cần đảm bảo các loader (PyPDFLoader, Docx2txtLoader) đã được import
         if filename.endswith(".pdf"):
             docs.extend(PyPDFLoader(filepath).load())
         elif filename.endswith(".txt"):
@@ -101,7 +111,8 @@ def setup_vectorstore():
 
     # 5. Tạo Vectorstore (Chroma)
     print("Bắt đầu: Tạo Vectorstore (Embedding)...")
-    embedding = OpenAIEmbeddings()
+    # Cần đảm bảo rằng biến môi trường OPENAI_API_KEY đã được thiết lập.
+    embedding = OpenAIEmbeddings() 
     vectorstore = Chroma.from_documents(
         documents=splits,
         embedding=embedding,
